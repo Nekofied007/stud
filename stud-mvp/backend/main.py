@@ -12,7 +12,7 @@ from pathlib import Path
 # Add app directory to Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.api import ingest, transcribe, embeddings, quiz
+from app.api import ingest, transcribe, embeddings, quiz, tutor
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -37,6 +37,7 @@ app.include_router(ingest.router)
 app.include_router(transcribe.router)
 app.include_router(embeddings.router)
 app.include_router(quiz.router)
+app.include_router(tutor.router)
 
 @app.get("/health")
 async def health_check():

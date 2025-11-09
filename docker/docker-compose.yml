@@ -17,16 +17,28 @@ services:
     image: redis:alpine
 
   frappe:
-    image: frappe/bench:latest
-    command: bash /workspace/init.sh
+    # Use the prebuilt LMS image to avoid building the bench inside the container
+    # (builds can fail in restricted network environments). This image contains
+    # a ready-to-run Frappe / LMS stack.
+    image: ghcr.io/frappe/lms:stable
     environment:
       - SHELL=/bin/bash
-    working_dir: /home/frappe
     volumes:
-      - .:/workspace
+      - frappe-sites:/home/frappe/frappe-bench/sites
+      - frappe-apps:/home/frappe/frappe-bench/apps
+
+  nginx:
+    image: nginx:alpine
     ports:
-      - 8000:8000
-      - 9000:9000
+      - 8000:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - frappe-sites:/home/frappe/frappe-bench/sites:ro
+      - frappe-apps:/home/frappe/frappe-bench/apps:ro
+    depends_on:
+      - frappe
 
 volumes:
   mariadb-data:
+  frappe-sites:
+  frappe-apps:

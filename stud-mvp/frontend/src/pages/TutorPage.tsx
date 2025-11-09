@@ -1,5 +1,12 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { 
+  useAskTutor, 
+  useTutorHistory, 
+  useClearTutorHistory, 
+  useTutorSession,
+  useSuggestedQuestions 
+} from '../hooks'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -9,13 +16,31 @@ interface Message {
 }
 
 const TutorPage: React.FC = () => {
-  const { sessionId } = useParams<{ sessionId?: string }>()
+  const { sessionId: sessionParam } = useParams<{ sessionId?: string }>()
   const [searchParams] = useSearchParams()
-  const videoId = searchParams.get('video')
+  const videoId = searchParams.get('video') || ''
 
+  // Tutor session and data hooks
+  const { sessionId, clearSession } = useTutorSession(videoId)
+  const { data: history, isLoading: historyLoading } = useTutorHistory(sessionParam || sessionId)
+  const { data: suggestions } = useSuggestedQuestions(videoId)
+  
+  // Mutations
+  const askMutation = useAskTutor()
+  const clearMutation = useClearTutorHistory()
+  
+  // Local state
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
-  const [loading, setLoading] = useState(false)
+
+  // Sync messages from history
+  useEffect(() => {
+    if (history?.messages) {
+      setMessages(history.messages)
+    }
+  }, [history])
+
+  const loading = askMutation.isLoading
 
   const handleSendQuestion = async () => {
     if (!question.trim()) return
@@ -59,15 +84,24 @@ const TutorPage: React.FC = () => {
               {sessionId && ` • Session: ${sessionId}`}
             </p>
           </div>
-          <button className="text-sm text-red-600 hover:text-red-700 font-medium">
-            Clear History
+          <button 
+            onClick={handleClearHistory}
+            disabled={clearMutation.isLoading || messages.length === 0}
+            className="text-sm text-red-600 hover:text-red-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            {clearMutation.isLoading ? 'Clearing...' : 'Clear History'}
           </button>
         </div>
       </div>
 
       {/* Chat Messages */}
       <div className="flex-1 bg-gray-50 border-x border-gray-200 overflow-y-auto p-6 space-y-4">
-        {messages.length === 0 ? (
+        {historyLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin text-4xl mb-4">⏳</div>
+            <p className="text-gray-600">Loading conversation...</p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🤖</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -81,14 +115,21 @@ const TutorPage: React.FC = () => {
             <div className="max-w-2xl mx-auto">
               <p className="text-sm font-medium text-gray-700 mb-3">Suggested questions:</p>
               <div className="grid gap-2">
-                {[
+                {suggestions && suggestions.length > 0 ? suggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSendQuestion(suggestion)}
+                    className="text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors text-sm"
+                  >
+                    {suggestion}
+                  </button>
+                )) : [
                   'Can you summarize the main points?',
-                  'What are the key takeaways?',
-                  'Explain the concept mentioned at 5:30'
+                  'What are the key takeaways?'
                 ].map((suggestion, index) => (
                   <button
                     key={index}
-                    onClick={() => setQuestion(suggestion)}
+                    onClick={() => handleSendQuestion(suggestion)}
                     className="text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors text-sm"
                   >
                     {suggestion}

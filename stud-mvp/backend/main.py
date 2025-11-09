@@ -7,13 +7,28 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 import sys
+import os
 from pathlib import Path
+
+# Sentry for error tracking
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
 
 # Add app directory to Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from app.api import ingest, transcribe, embeddings, quiz, tutor, auth
 from app.core.database import init_db
+
+# Initialize Sentry if DSN is provided
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[FastApiIntegration()],
+        traces_sample_rate=0.1,  # 10% of requests tracked for performance
+        environment=os.getenv("ENVIRONMENT", "development"),
+    )
 
 # Initialize FastAPI app
 app = FastAPI(

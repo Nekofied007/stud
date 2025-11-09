@@ -17,7 +17,8 @@
     "axios": "^1.6.5",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
-    "web-vitals": "^3.5.1"
+    "web-vitals": "^3.5.1",
+    "@sentry/react": "^7.99.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
@@ -25,13 +26,21 @@
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.33",
     "eslint": "^8.56.0",
-    "prettier": "^3.1.1"
+    "prettier": "^3.1.1",
+    "@playwright/test": "^1.40.1",
+    "vitest": "^1.2.0",
+    "@vitest/ui": "^1.2.0",
+    "@sentry/react": "^7.99.0",
+    "@sentry/vite-plugin": "^2.14.0"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
+    "test:unit": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "lint": "eslint src --ext ts,tsx",
     "format": "prettier --write src/**/*.{ts,tsx,css}"
   },

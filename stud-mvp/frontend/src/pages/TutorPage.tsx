@@ -42,33 +42,57 @@ const TutorPage: React.FC = () => {
 
   const loading = askMutation.isLoading
 
-  const handleSendQuestion = async () => {
-    if (!question.trim()) return
+  const handleClearHistory = async () => {
+    if (!window.confirm('Are you sure you want to clear the conversation history?')) {
+      return
+    }
+    
+    try {
+      await clearMutation.mutateAsync(sessionParam || sessionId)
+      clearSession()
+      setMessages([])
+    } catch (error) {
+      console.error('Failed to clear history:', error)
+      alert('Failed to clear history. Please try again.')
+    }
+  }
 
-    const userMessage: Message = { role: 'user', content: question }
-    setMessages(prev => [...prev, userMessage])
-    setQuestion('')
-    setLoading(true)
+  const handleSendQuestion = async (questionText?: string) => {
+    const messageText = questionText || question.trim()
+    if (!messageText) return
 
     try {
-      // TODO: Send question to API
-      // POST /api/v1/tutor/ask with { question, video_id, session_id }
+      // Add user message immediately
+      const userMessage: Message = { role: 'user', content: messageText }
+      setMessages((prev: Message[]) => [...prev, userMessage])
+      setQuestion('')
 
-      // Mock response
+      // Send to API
+      const response = await askMutation.mutateAsync({
+        question: messageText,
+        video_id: videoId,
+        session_id: sessionParam || sessionId
+      })
+
+      // Add assistant response
       const assistantMessage: Message = {
         role: 'assistant',
-        content: 'This is a sample response from the AI tutor. The actual response will be fetched from the API.',
-        sources: [
-          { timestamp: '1:23', text: 'Relevant context from video...' }
-        ],
-        confidence: 0.85
+        content: response.answer,
+        sources: response.sources?.map(s => ({
+          timestamp: s.timestamp,
+          text: s.text
+        })),
+        confidence: response.confidence
       }
-
-      setMessages(prev => [...prev, assistantMessage])
+      setMessages((prev: Message[]) => [...prev, assistantMessage])
     } catch (error) {
-      console.error('Failed to send question:', error)
-    } finally {
-      setLoading(false)
+      console.error('Failed to send message:', error)
+      // Add error message
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.'
+      }
+      setMessages((prev: Message[]) => [...prev, errorMessage])
     }
   }
 
@@ -161,12 +185,17 @@ const TutorPage: React.FC = () => {
                       {message.sources.map((source, idx) => (
                         <button
                           key={idx}
+                          onClick={() => {
+                            // Navigate to lesson page with timestamp
+                            // Format: /courses/PLAYLIST_ID/lessons/VIDEO_ID?t=TIMESTAMP
+                            window.open(`/courses/unknown/lessons/${videoId}?t=${source.timestamp}`, '_blank')
+                          }}
                           className="block w-full text-left text-xs bg-blue-50 border border-blue-200 rounded px-3 py-2 hover:bg-blue-100 transition-colors"
                         >
                           <span className="font-semibold text-indigo-600">
                             🎬 {source.timestamp}
                           </span>
-                          <span className="text-gray-700 ml-2">{source.text}</span>
+                          <span className="text-gray-700 ml-2 line-clamp-1">{source.text}</span>
                         </button>
                       ))}
                       
@@ -204,13 +233,13 @@ const TutorPage: React.FC = () => {
             type="text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendQuestion()}
+            onKeyPress={(e) => e.key === 'Enter' && !loading && handleSendQuestion()}
             placeholder="Ask a question about the video..."
             disabled={loading}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100"
           />
           <button
-            onClick={handleSendQuestion}
+            onClick={() => handleSendQuestion()}
             disabled={loading || !question.trim()}
             className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >

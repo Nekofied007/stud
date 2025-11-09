@@ -6,6 +6,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
+import sys
+from pathlib import Path
+
+# Add app directory to Python path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from app.api import ingest
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -24,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(ingest.router)
 
 @app.get("/health")
 async def health_check():

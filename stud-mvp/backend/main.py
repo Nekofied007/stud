@@ -12,7 +12,8 @@ from pathlib import Path
 # Add app directory to Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.api import ingest, transcribe, embeddings, quiz, tutor
+from app.api import ingest, transcribe, embeddings, quiz, tutor, auth
+from app.core.database import init_db
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -32,7 +33,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize database
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    init_db()
+
 # Include routers
+app.include_router(auth.router)
 app.include_router(ingest.router)
 app.include_router(transcribe.router)
 app.include_router(embeddings.router)

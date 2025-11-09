@@ -1,11 +1,19 @@
 import React from 'react'
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 const Layout: React.FC = () => {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout, isAuthenticated } = useAuth()
 
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(path + '/')
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
   }
 
   return (
@@ -23,7 +31,7 @@ const Layout: React.FC = () => {
             </Link>
 
             {/* Navigation */}
-            <nav className="flex space-x-1">
+            <nav className="flex items-center space-x-1">
               <Link
                 to="/"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -54,6 +62,38 @@ const Layout: React.FC = () => {
               >
                 AI Tutor
               </Link>
+              
+              {/* Auth buttons */}
+              <div className="ml-4 flex items-center space-x-2 border-l border-gray-200 pl-4">
+                {isAuthenticated ? (
+                  <>
+                    <span className="text-sm text-gray-600">
+                      {user?.username}
+                    </span>
+                    <button
+                      onClick={handleLogout}
+                      className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/login"
+                      className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      to="/register"
+                      className="px-3 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+                    >
+                      Sign Up
+                    </Link>
+                  </>
+                )}
+              </div>
             </nav>
           </div>
         </div>

@@ -1,12 +1,18 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from 'react-query'
+import { AuthProvider } from './contexts/AuthContext'
 
 // Layout
 import Layout from './components/Layout'
+import ProtectedRoute from './components/ProtectedRoute'
 
 // Pages
 import HomePage from './pages/HomePage'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import PrivacyPage from './pages/PrivacyPage'
+import TermsPage from './pages/TermsPage'
 import CoursesPage from './pages/CoursesPage'
 import CourseDetailPage from './pages/CourseDetailPage'
 import LessonPage from './pages/LessonPage'
@@ -27,19 +33,70 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<HomePage />} />
-            <Route path="courses" element={<CoursesPage />} />
-            <Route path="courses/:playlistId" element={<CourseDetailPage />} />
-            <Route path="courses/:playlistId/lessons/:videoId" element={<LessonPage />} />
-            <Route path="quiz/:videoId" element={<QuizPage />} />
-            <Route path="tutor" element={<TutorPage />} />
-            <Route path="tutor/:sessionId" element={<TutorPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            
+            {/* Protected routes */}
+            <Route path="/" element={<Layout />}>
+              <Route index element={<HomePage />} />
+              <Route 
+                path="courses" 
+                element={
+                  <ProtectedRoute>
+                    <CoursesPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="courses/:playlistId" 
+                element={
+                  <ProtectedRoute>
+                    <CourseDetailPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="courses/:playlistId/lessons/:videoId" 
+                element={
+                  <ProtectedRoute>
+                    <LessonPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="quiz/:videoId" 
+                element={
+                  <ProtectedRoute>
+                    <QuizPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="tutor" 
+                element={
+                  <ProtectedRoute>
+                    <TutorPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="tutor/:sessionId" 
+                element={
+                  <ProtectedRoute>
+                    <TutorPage />
+                  </ProtectedRoute>
+                } 
+              />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }

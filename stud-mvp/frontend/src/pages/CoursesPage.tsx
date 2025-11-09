@@ -1,37 +1,24 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useIngestPlaylist, usePlaylists } from '../hooks'
 
 const CoursesPage: React.FC = () => {
   const [playlistUrl, setPlaylistUrl] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  
+  // React Query hooks
+  const ingestMutation = useIngestPlaylist()
+  const { data: playlists, isLoading: loadingPlaylists } = usePlaylists()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setSuccess(false)
+    
+    if (!playlistUrl.trim()) return
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/ingest/playlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: playlistUrl })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to ingest playlist')
-      }
-
-      setSuccess(true)
+      await ingestMutation.mutateAsync(playlistUrl)
       setPlaylistUrl('')
-      // TODO: Refresh course list
     } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
+      console.error('Failed to ingest playlist:', err)
     }
   }
 
@@ -61,20 +48,20 @@ const CoursesPage: React.FC = () => {
               placeholder="https://www.youtube.com/playlist?list=..."
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              disabled={loading}
+              disabled={ingestMutation.isLoading}
             />
             <p className="text-sm text-gray-500 mt-1">
               Paste the URL of any public YouTube playlist
             </p>
           </div>
 
-          {error && (
+          {ingestMutation.isError && (
             <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-              {error}
+              {(ingestMutation.error as any)?.response?.data?.detail || 'Failed to import playlist'}
             </div>
           )}
 
-          {success && (
+          {ingestMutation.isSuccess && (
             <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
               Playlist imported successfully! Transcription will begin shortly.
             </div>
@@ -82,38 +69,59 @@ const CoursesPage: React.FC = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={ingestMutation.isLoading || !playlistUrl.trim()}
             className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? 'Importing...' : 'Import Playlist'}
+            {ingestMutation.isLoading ? 'Importing...' : 'Import Playlist'}
           </button>
         </form>
       </div>
 
-      {/* Placeholder for Course List */}
+      {/* Course List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Courses</h2>
         
-        {/* TODO: Fetch and display actual courses */}
-        <div className="text-center py-12 text-gray-500">
-          <div className="text-5xl mb-4">📚</div>
-          <p className="text-lg">No courses yet</p>
-          <p className="text-sm">Import your first playlist to get started</p>
-        </div>
-
-        {/* Example course card (commented out) */}
-        {/* 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Link to="/courses/PLAYLIST_ID" className="block bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow border border-gray-200">
-            <div className="aspect-video bg-gray-300 rounded-md mb-3"></div>
-            <h3 className="font-semibold text-gray-900 mb-1">Course Title</h3>
-            <p className="text-sm text-gray-600 mb-2">12 videos</p>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Transcribed</span>
-            </div>
-          </Link>
-        </div>
-        */}
+        {loadingPlaylists ? (
+          <div className="text-center py-12 text-gray-500">
+            <div className="text-5xl mb-4">⏳</div>
+            <p className="text-lg">Loading courses...</p>
+          </div>
+        ) : playlists && playlists.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {playlists.map((playlist) => (
+              <Link
+                key={playlist.playlist_id}
+                to={`/courses/${playlist.playlist_id}`}
+                className="block bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow border border-gray-200"
+              >
+                {playlist.videos?.[0]?.thumbnail_url && (
+                  <img
+                    src={playlist.videos[0].thumbnail_url}
+                    alt={playlist.title}
+                    className="w-full aspect-video object-cover rounded-md mb-3"
+                  />
+                )}
+                <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">
+                  {playlist.title}
+                </h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  {playlist.video_count} video{playlist.video_count !== 1 ? 's' : ''}
+                </p>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                    {playlist.channel_title}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-500">
+            <div className="text-5xl mb-4">📚</div>
+            <p className="text-lg">No courses yet</p>
+            <p className="text-sm">Import your first playlist to get started</p>
+          </div>
+        )}
       </div>
     </div>
   )

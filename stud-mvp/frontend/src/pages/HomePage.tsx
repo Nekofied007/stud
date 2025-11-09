@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery } from 'react-query'
+import { checkHealth } from '../api'
 
 const HomePage: React.FC = () => {
-  const [backendStatus, setBackendStatus] = useState<'loading' | 'online' | 'offline'>('loading')
+  const { data: health, isLoading, isError } = useQuery('health', checkHealth, {
+    refetchInterval: 30000, // Check every 30 seconds
+    retry: 1
+  })
 
-  useEffect(() => {
-    fetch('http://localhost:8000/health')
-      .then(res => res.json())
-      .then(() => setBackendStatus('online'))
-      .catch(() => setBackendStatus('offline'))
-  }, [])
+  const backendStatus = isLoading ? 'loading' : isError ? 'offline' : 'online'
 
   return (
     <div className="space-y-12">

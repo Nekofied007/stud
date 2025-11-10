@@ -9,14 +9,14 @@ export const apiClient = axios.create({
   timeout: 30000 // 30 seconds
 })
 
-// Request interceptor for adding auth tokens (future use)
+// Request interceptor for adding auth tokens
 apiClient.interceptors.request.use(
   (config) => {
-    // TODO: Add JWT token from localStorage when auth is implemented
-    // const token = localStorage.getItem('auth_token')
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`
-    // }
+    // Add JWT token from localStorage if available
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   (error) => {
@@ -37,8 +37,11 @@ apiClient.interceptors.response.use(
       
       switch (status) {
         case 401:
-          // TODO: Redirect to login when auth is implemented
-          console.error('Unauthorized access')
+          // Unauthorized - token expired or invalid
+          console.error('Unauthorized access - redirecting to login')
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          window.location.href = '/login'
           break
         case 404:
           console.error('Resource not found')

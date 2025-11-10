@@ -1,11 +1,35 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { useTranscript, useVideo, useTranscribeVideo, useTranscriptionStatus } from '../hooks'
+import { formatTimestamp } from '../api/transcribe'
 
 const LessonPage: React.FC = () => {
   const { playlistId, videoId } = useParams<{ playlistId: string; videoId: string }>()
+  const [activeSegment, setActiveSegment] = useState<number | null>(null)
 
-  // TODO: Fetch transcript from API
-  // const { data: transcript, isLoading } = useQuery(['transcript', videoId], ...)
+  // Fetch video metadata
+  const { data: video } = useVideo(videoId)
+  
+  // Fetch transcript
+  const { data: transcript, isLoading: transcriptLoading, isError: transcriptError } = useTranscript(videoId)
+  
+  // Fetch transcription status
+  const { data: status } = useTranscriptionStatus(videoId)
+  
+  // Mutation to start transcription
+  const transcribeMutation = useTranscribeVideo()
+
+  const handleStartTranscription = () => {
+    if (videoId) {
+      transcribeMutation.mutate(videoId)
+    }
+  }
+
+  const handleSegmentClick = (startTime: number, index: number) => {
+    setActiveSegment(index)
+    // TODO: Seek video to timestamp (requires video player ref)
+    console.log('Seek to:', startTime)
+  }
 
   return (
     <div className="space-y-6">
@@ -36,11 +60,15 @@ const LessonPage: React.FC = () => {
           {/* Video Info */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              {/* TODO: Replace with actual video title */}
-              Lesson Title
+              {video?.title || 'Lesson Title'}
             </h1>
-            <p className="text-gray-600 mb-4">
-              Video ID: {videoId}
+            <p className="text-gray-600 mb-2">
+              {video?.description && (
+                <span className="text-sm line-clamp-2">{video.description}</span>
+              )}
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              Duration: {video?.duration || 'Unknown'} • Video ID: {videoId}
             </p>
 
             {/* Action Buttons */}
@@ -64,38 +92,79 @@ const LessonPage: React.FC = () => {
         {/* Transcript - Right Column (1/3 width) */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-24 max-h-[calc(100vh-8rem)] flex flex-col">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Transcript</h2>
-            
-            {/* TODO: Replace with actual transcript */}
-            <div className="flex-1 overflow-y-auto space-y-4 text-sm">
-              <div className="text-center py-12 text-gray-500">
-                <p>Loading transcript...</p>
-                <p className="text-xs mt-2">Transcripts are generated automatically</p>
-              </div>
-
-              {/* Example transcript segment (commented out) */}
-              {/*
-              {transcript?.segments.map((segment, index) => (
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Transcript</h2>
+              {status && status.status === 'pending' && (
                 <button
-                  key={index}
-                  onClick={() => seekToTimestamp(segment.start)}
-                  className="block w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={handleStartTranscription}
+                  disabled={transcribeMutation.isLoading}
+                  className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-400"
                 >
-                  <div className="text-xs text-indigo-600 font-medium mb-1">
-                    {formatTimestamp(segment.start)}
-                  </div>
-                  <div className="text-gray-700">
-                    {segment.text}
-                  </div>
+                  {transcribeMutation.isLoading ? 'Starting...' : 'Generate'}
                 </button>
-              ))}
-              */}
+              )}
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-2 text-sm">
+              {transcriptLoading || status?.status === 'processing' ? (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="animate-spin text-3xl mb-4">⏳</div>
+                  <p>Transcribing video...</p>
+                  <p className="text-xs mt-2">This may take a few minutes</p>
+                </div>
+              ) : transcriptError || status?.status === 'failed' ? (
+                <div className="text-center py-12 text-red-500">
+                  <p>❌ Transcription failed</p>
+                  <button
+                    onClick={handleStartTranscription}
+                    className="mt-3 text-sm px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : transcript && transcript.segments && transcript.segments.length > 0 ? (
+                transcript.segments.map((segment, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSegmentClick(segment.start, index)}
+                    className={`block w-full text-left p-3 rounded-lg transition-colors ${
+                      activeSegment === index 
+                        ? 'bg-indigo-50 border-l-4 border-indigo-600' 
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="text-xs text-indigo-600 font-medium mb-1">
+                      {formatTimestamp(segment.start)}
+                    </div>
+                    <div className="text-gray-700 text-sm">
+                      {segment.text}
+                    </div>
+                  </button>
+                ))
+              ) : status?.status === 'pending' ? (
+                <div className="text-center py-12 text-gray-500">
+                  <p>📝 Transcript not generated yet</p>
+                  <button
+                    onClick={handleStartTranscription}
+                    disabled={transcribeMutation.isLoading}
+                    className="mt-3 text-sm px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-400"
+                  >
+                    {transcribeMutation.isLoading ? 'Starting...' : 'Generate Transcript'}
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <p>No transcript available</p>
+                </div>
+              )}
             </div>
 
             {/* Transcript Actions */}
-            <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-600">
-              <p>Click any segment to jump to that point in the video</p>
-            </div>
+            {transcript && transcript.segments && transcript.segments.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-600">
+                <p>💡 Click any segment to jump to that point in the video</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
